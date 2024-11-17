@@ -1,30 +1,36 @@
 import streamlit as st
-import pandas as pd
-from vid_rec import prepare_recommendation_matrix, recommend_posts
+from vid_rec import fetch_data, preprocess_data, recommend_posts, get_post_details
 
-# Set up Streamlit title
-st.title('Socialverse Post Recommendations')
+# Streamlit App
+st.title("Video Recommendation System")
 
-# Prepare data and recommendation matrix
-full_df, user_item_matrix, user_similarity = prepare_recommendation_matrix()
+# Fetch and preprocess data
+st.write("Fetching data from APIs...")
+full_df = fetch_data()
+user_item_matrix = preprocess_data(full_df)
+st.success("Data successfully fetched and preprocessed!")
 
-# Sidebar for user selection
-user_index = st.sidebar.slider('Select User Index', 0, len(user_item_matrix) - 1, 0)
+# User input for recommendations
+user_indices = list(range(len(user_item_matrix.index)))
+selected_user_index = st.selectbox("Select a User Index", user_indices)
 
-# Get top recommendations for the selected user
-num_recommendations = st.sidebar.slider('Select Number of Recommendations', 1, 10, 5)
+num_recommendations = st.slider(
+    "Number of Recommendations", min_value=1, max_value=20, value=5
+)
 
-# Display user index and number of recommendations
-st.write(f"Showing top  {num_recommendations} recommendations for User  : {user_index + 1}.")
-
-# Get recommended post indices
-recommended_posts = recommend_posts(user_index=user_index, interaction_matrix=user_item_matrix.values, user_similarity=user_similarity, num_recommendations=num_recommendations)
-
-# Display the recommended posts
-for post_index in recommended_posts:
-    post_data = full_df[full_df['id'] == post_index]
-    if not post_data.empty:
-        st.write(f"Title: {post_data['title'].values[0]}")
-        st.write(f"Video Link: {post_data['video_link'].values[0]}")
+# Generate recommendations on button click
+if st.button("Generate Recommendations"):
+    st.write(f"Generating recommendations for User {selected_user_index}...")
+    recommended_posts = recommend_posts(user_item_matrix, selected_user_index, num_recommendations)
+    
+    # Fetch post details
+    st.write("Fetching details for recommended posts...")
+    recommended_details = get_post_details(full_df, recommended_posts)
+    
+    # Display recommendations
+    st.subheader(f"Top {num_recommendations} Recommendations for User {selected_user_index}:")
+    if recommended_details:
+        for details in recommended_details:
+            st.write(details)
     else:
-        st.write("No data available for this post.")
+        st.write("No recommendations found.")
